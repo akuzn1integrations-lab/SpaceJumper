@@ -1,7 +1,7 @@
 /* SpaceJumper deterministic fixed-step simulation. No browser dependencies. */
 (function(root){
 'use strict';
-const C={width:540,height:960,gravity:1800,jump:780,speed:260,accel:2200,brake:2600,step:1/60,speeds:[45,55,65,78,92,105,118,130],version:'1.1.0'};
+const C={width:540,height:960,gravity:1800,jump:780,speed:260,accel:2200,brake:2600,step:1/60,speeds:[45,55,65,78,92,105,118,130],bonusSize:26,mineLevel:10,version:'1.2.0'};
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 function contact(p,old,q){
  if(p.vy<0)return null;
@@ -23,12 +23,25 @@ function reachable(from,to,gap,speed){
  }
  return false;
 }
+function safeSpan(q){return {x:q.x+(q.spikeLeft||0),w:q.w-(q.spikeLeft||0)-(q.spikeRight||0)};}
+function laserLength(level){return 160+200*clamp((level-6)/10,0,1);}
+function mineDirections(level){return [1,2,4,6,8][clamp(Math.floor((level-C.mineLevel)/2),0,4)];}
+function mineRays(m){return Array.from({length:m.count},(_,i)=>{const a=m.angle+i*2*Math.PI/m.count;return {x:m.x+Math.cos(a)*m.range,y:m.y+Math.sin(a)*m.range};});}
+function beamHits(x,y,xx,yy,p){
+ let near=0,far=1;
+ for(const [start,delta,min,max] of [[x,xx-x,p.x-4,p.x+32],[y,yy-y,p.y-4,p.y+44]]){
+  if(Math.abs(delta)<1e-8){if(start<min||start>max)return false;continue;}
+  const a=(min-start)/delta,b=(max-start)/delta;
+  near=Math.max(near,Math.min(a,b));far=Math.min(far,Math.max(a,b));if(near>far)return false;
+ }
+ return true;
+}
 class Game{
- constructor(seed=Date.now(),tutorial=false){this.seed=seed>>>0;this.rng=this.seed;this.tutorial=tutorial;this.time=0;this.tick=0;this.score=0;this.jumps=0;this.combo=0;this.maxCombo=0;this.level=1;this.speed=tutorial?0:45;this.target=this.speed;this.platforms=[];this.items=[];this.lasers=[];this.id=0;this.rows=0;this.reserves=0;this.flightEnd=-100;this.dead=false;this.events=[];this.inputs=[];this.lastInput='';this.p={x:256,y:740,vx:0,vy:0,ground:null,coyote:0,buffer:0,shield:false,reserve:false,flight:0,inv:0,manual:false};this.fill();}
+ constructor(seed=Date.now(),tutorial=false){this.seed=seed>>>0;this.rng=this.seed;this.tutorial=tutorial;this.time=0;this.tick=0;this.score=0;this.jumps=0;this.combo=0;this.maxCombo=0;this.level=1;this.speed=tutorial?0:45;this.target=this.speed;this.platforms=[];this.items=[];this.lasers=[];this.mines=[];this.id=0;this.rows=0;this.reserves=0;this.flightEnd=-100;this.dead=false;this.events=[];this.inputs=[];this.lastInput='';this.p={x:256,y:740,vx:0,vy:0,ground:null,coyote:0,buffer:0,shield:false,reserve:false,flight:0,inv:0,manual:false};this.fill();}
  random(){let t=this.rng+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;}
  emit(type,text){this.events.push({type,text});}
- platform(x,y,w=160,type='standard',route=false){const q={id:++this.id,x,y,ox:x,oy:y,base:x,w,type,route,phase:this.random()*6.28,age:0,crumble:null,visited:false};this.platforms.push(q);return q;}
- fill(startY=780){this.platforms=[];this.items=[];this.lasers=[];const q=this.platform(170,startY,200,'standard',true);q.visited=true;this.p.ground=q;for(let y=startY-100;y>-110;y-=100)this.row(y);}
+ platform(x,y,w=160,type='standard',route=false){const q={id:++this.id,x,y,ox:x,oy:y,base:x,w,type,route,phase:this.random()*6.28,age:0,crumble:null,visited:false};if(type==='spikes'){const mode=Math.floor(this.random()*3),spikes=w-80;q.spikeLeft=mode===0?spikes:mode===2?spikes/2:0;q.spikeRight=mode===1?spikes:mode===2?spikes/2:0;}this.platforms.push(q);return q;}
+ fill(startY=780){this.platforms=[];this.items=[];this.lasers=[];this.mines=[];const q=this.platform(170,startY,200,'standard',true);q.visited=true;this.p.ground=q;for(let y=startY-100;y>-110;y-=100)this.row(y);}
  row(y){
  this.rows++;const lv=Math.min(this.level,8),w=[180,160,145,130,120,110,100,100][lv-1];
  const centered=this.tutorial||lv===1;
@@ -50,15 +63,21 @@ class Game{
   const types=['standard'];if(lv>=2)types.push('narrow');if(lv>=3)types.push('crumble');if(lv>=4)types.push('drift');if(lv>=5)types.push('spikes');
   const type=types[this.rows%types.length],width=type==='narrow'?80:120;
   const margin=type==='drift'?20:0;
-  const x=centered?(this.rows%2===0?24:396):margin+this.random()*(C.width-width-2*margin);
-  const q=this.platform(x,y-35,width,type);
-  if(this.rows%4===0)this.items.push({x:q.x+width/2,y:y-65,type:this.rows%12===0?'core':'crystal',q,offset:30});
+  // Secondary platforms share a row, with a bonus-sized clear gap even at
+  // maximum drift. Consecutive rows have 100 units of vertical separation.
+  const intervals=[[margin,route.x-C.bonusSize-width-margin],[route.x+route.w+C.bonusSize+margin,C.width-width-margin]].filter(([a,b])=>b>=a);
+  if(intervals.length){const interval=intervals[Math.floor(this.random()*intervals.length)];
+   const x=interval[0]+this.random()*(interval[1]-interval[0]);
+   const q=this.platform(x,y,width,type);
+   if(this.rows%4===0)this.items.push({x:q.x+width/2,y:y-30,type:this.rows%12===0?'core':'crystal',q,offset:30});
+  }
   if(this.rows%15===0){const choices=['shield','flight','reserve'];let type=choices[Math.floor(this.random()*3)];if(type==='flight'&&(this.p.flight>0||this.time-this.flightEnd<12))type='shield';if(type==='reserve'&&this.reserves>=2)type='shield';if(type==='reserve')this.reserves++;this.items.push({x:center,y:y-30,type,q:route,offset:30});}
-  // Keep the warning beam outside the current and preceding landing corridor.
-  if(lv>=6&&this.rows%7===0){
-   const left=Math.min(from,center)-w/2-40,right=Math.max(from,center)+w/2+40;
-   const leftSide=left>C.width-right,span=Math.min(160,leftSide?left:C.width-right);
-   if(span>=60)this.lasers.push({x:leftSide?0:C.width-span,w:span,y:y-70,age:0});
+  if(this.level>=6&&this.rows%7===0){
+   const span=laserLength(this.level),leftSide=this.random()<.5;
+   this.lasers.push({x:leftSide?0:C.width-span,w:span,y:y-70,age:0});
+  }
+  if(this.level>=C.mineLevel&&this.rows%11===0){
+   this.mines.push({x:100+this.random()*340,y:y-50,age:0,count:mineDirections(this.level),angle:Math.floor(this.random()*8)*Math.PI/4,range:90});
   }
  }
  if(this.rows%4===1)this.items.push({x:center,y:y-30,type:'crystal',q:route,offset:30});
@@ -85,14 +104,16 @@ class Game{
  else if(!p.ground){p.vy=Math.min(1000,p.vy+C.gravity*dt);p.y+=p.vy*dt;const hits=this.platforms.map(q=>contact(p,old,q)).filter(Boolean).sort((a,b)=>a.t-b.t);if(hits.length){landing=hits[0];const q=landing.q;p.ground=q;p.y=q.y-40;p.vy=0;p.coyote=0;if(q.type==='crumble'&&q.crumble===null)q.crumble=.7;}}
  if(p.y<0){p.y=0;p.vy=0;}
  for(const l of this.lasers){l.y+=this.speed*dt;if(l.y>=160)l.age+=dt;}this.lasers=this.lasers.filter(l=>l.y<960&&l.age<6);
+ for(const m of this.mines){m.y+=this.speed*dt;if(m.y>=160)m.age+=dt;}this.mines=this.mines.filter(m=>m.y<1060);
  if(p.y+40>=900){this.damage('Пропущена платформа');return;}
- if(landing&&landing.q.type==='spikes'&&landing.x+28>landing.qx+80){if(this.damage('Шипы'))return;}
+ if(landing&&landing.q.type==='spikes'){const q=landing.q;if((q.spikeLeft&&landing.x<landing.qx+q.spikeLeft)||(q.spikeRight&&landing.x+28>landing.qx+q.w-q.spikeRight)){if(this.damage('Шипы'))return;}}
  for(const l of this.lasers){if(l.age>=1.2&&l.age<1.65&&p.x+28>l.x&&p.x<l.x+l.w&&p.y<l.y+5&&p.y+40>l.y-5){if(this.damage('Лазер'))return;}}
+ for(const m of this.mines){const phase=m.age%3;if(m.age>0&&phase>=1.2&&phase<1.55&&mineRays(m).some(r=>beamHits(m.x,m.y,r.x,r.y,p))){if(this.damage('Лазерная мина'))return;}}
  this.items=this.items.filter(item=>{if(!this.platforms.includes(item.q))return false;item.x=item.q.x+item.q.w/2;item.y=item.q.y-item.offset;if(Math.abs(p.x+14-item.x)<28&&Math.abs(p.y+20-item.y)<35){this.pickup(item);return false;}return item.y<960;});
- if(landing){const q=landing.q;if(!q.visited){this.score+=20*Math.min(1+Math.floor(this.combo/5),4);const safe=q.type==='spikes'?80:q.w;if(Math.abs(p.x+14-(q.x+safe/2))<=safe*.15)this.score+=10;if(p.manual)this.combo++;this.maxCombo=Math.max(this.maxCombo,this.combo);q.visited=true;}else this.combo=0;p.manual=false;this.target=this.tutorial?25:C.speeds[Math.min(this.level,8)-1];this.emit('land');if(p.buffer>0)this.jump();}
+ if(landing){const q=landing.q;if(!q.visited){this.score+=20*Math.min(1+Math.floor(this.combo/5),4);const safe=safeSpan(q);if(Math.abs(p.x+14-(safe.x+safe.w/2))<=safe.w*.15)this.score+=10;if(p.manual)this.combo++;this.maxCombo=Math.max(this.maxCombo,this.combo);q.visited=true;}else this.combo=0;p.manual=false;this.target=this.tutorial?25:C.speeds[Math.min(this.level,8)-1];this.emit('land');if(p.buffer>0)this.jump();}
  const top=Math.min(...this.platforms.filter(q=>q.route).map(q=>q.y));if(top>-10)this.row(top-100);
  if(this.tutorial&&this.jumps>=5&&this.maxCombo>=2){this.complete=true;this.emit('tutorial');}
  }
 }
-const api={Game,C,contact,reachable};if(typeof module!=='undefined')module.exports=api;root.SpaceJumper=api;
+const api={Game,C,contact,reachable,safeSpan,laserLength,mineDirections,mineRays,beamHits};if(typeof module!=='undefined')module.exports=api;root.SpaceJumper=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
