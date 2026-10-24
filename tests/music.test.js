@@ -12,3 +12,18 @@ test('music schedules percussion and tones, avoids duplicate timers and stops on
 test('music tempo increases with level and volume can mute it',()=>{
  const a=new FlightMusic(context()),b=new FlightMusic(context());try{b.level=50;a.start();b.start();assert.ok(b.next<a.next);b.setVolume(0);assert.equal(b.volume,0);b.setVolume(2);assert.equal(b.volume,1);}finally{a.stop();b.stop();}
 });
+const {makeArrangement,FORM_BARS}=require('../music.js');
+test('music has a forty-bar form with harmonic variations and a bridge',()=>{
+ const form=makeArrangement(()=>.3);assert.equal(FORM_BARS,40);assert.equal(form.length,40);
+ assert.notDeepEqual(form.slice(0,4),form.slice(4,8));
+ assert.ok(form.slice(20,24).every(bar=>bar.sparse));
+ assert.ok(form[36].energy>form[20].energy);
+ for(const bar of form){assert.equal(bar.melody.length,8);assert.ok(bar.bass.every(s=>s>=0&&s<16));assert.ok(bar.melody.every(n=>Number.isFinite(n)));}
+ assert.notDeepEqual(form,makeArrangement(()=>.8));
+});
+test('a new arrangement is generated after forty bars and not on pause',()=>{
+ let calls=0;const ctx=context(),m=new FlightMusic(ctx,()=>{calls++;return calls%10/10;});
+ try{m.start();const original=m.arrangement,firstCalls=calls;m.stop();m.start();assert.equal(m.arrangement,original);assert.equal(calls,firstCalls);
+  m.step=FORM_BARS*16;m.next=ctx.currentTime+.01;m.schedule();assert.notEqual(m.arrangement,original);assert.ok(calls>firstCalls);assert.equal(m.cycle,1);
+ }finally{m.stop();}
+});
