@@ -1,7 +1,7 @@
 /* SpaceJumper deterministic fixed-step simulation. No browser dependencies. */
 (function(root){
 'use strict';
-const C={width:540,height:960,gravity:1800,jump:780,speed:260,accel:2200,brake:2600,step:1/60,speeds:[45,55,65,78,92,105,118,130],version:'1.0.0'};
+const C={width:540,height:960,gravity:1800,jump:780,speed:260,accel:2200,brake:2600,step:1/60,speeds:[45,55,65,78,92,105,118,130],version:'1.1.0'};
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 function contact(p,old,q){
  if(p.vy<0)return null;
@@ -10,24 +10,62 @@ function contact(p,old,q){
  const t=clamp(-a/(b-a),0,1),x=old.x+(p.x-old.x)*t,qx=q.ox+(q.x-q.ox)*t;
  return x+28>qx&&x<qx+q.w?{q,t,x,qx}:null;
 }
+// Simulate a center-to-center jump with acceleration and braking. Check the
+// slowest and fastest flow so pending speed changes cannot invalidate a row.
+function reachable(from,to,gap,speed){
+ let x=from,vx=0,y=0,vy=-C.jump,t=0;
+ for(let i=0;i<90;i++){
+  const oldY=y,oldT=t,delta=to-x;
+  const desired=Math.sign(delta)*Math.min(C.speed,Math.sqrt(2*C.brake*Math.abs(delta)));
+  vx+=clamp(desired-vx,-C.accel*C.step,C.accel*C.step);
+  x+=vx*C.step;vy+=C.gravity*C.step;y+=vy*C.step;t+=C.step;
+  if(vy>=0&&oldY<=-gap+speed*oldT&&y>=-gap+speed*t)return Math.abs(x-to)<=12;
+ }
+ return false;
+}
 class Game{
  constructor(seed=Date.now(),tutorial=false){this.seed=seed>>>0;this.rng=this.seed;this.tutorial=tutorial;this.time=0;this.tick=0;this.score=0;this.jumps=0;this.combo=0;this.maxCombo=0;this.level=1;this.speed=tutorial?0:45;this.target=this.speed;this.platforms=[];this.items=[];this.lasers=[];this.id=0;this.rows=0;this.reserves=0;this.flightEnd=-100;this.dead=false;this.events=[];this.inputs=[];this.lastInput='';this.p={x:256,y:740,vx:0,vy:0,ground:null,coyote:0,buffer:0,shield:false,reserve:false,flight:0,inv:0,manual:false};this.fill();}
  random(){let t=this.rng+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;}
  emit(type,text){this.events.push({type,text});}
  platform(x,y,w=160,type='standard',route=false){const q={id:++this.id,x,y,ox:x,oy:y,base:x,w,type,route,phase:this.random()*6.28,age:0,crumble:null,visited:false};this.platforms.push(q);return q;}
- fill(){this.platforms=[];this.items=[];this.lasers=[];const q=this.platform(170,780,200,'standard',true);q.visited=true;this.p.ground=q;for(let y=680;y>-110;y-=100)this.row(y);}
+ fill(startY=780){this.platforms=[];this.items=[];this.lasers=[];const q=this.platform(170,startY,200,'standard',true);q.visited=true;this.p.ground=q;for(let y=startY-100;y>-110;y-=100)this.row(y);}
  row(y){
  this.rows++;const lv=Math.min(this.level,8),w=[180,160,145,130,120,110,100,100][lv-1];
- // Conservative fallback spine: same center, <=100 vertical separation. Safe at every supported speed.
- this.platform(270-w/2,y,w,'standard',true);
- if(!this.tutorial){let types=['standard'];if(lv>=2)types.push('narrow');if(lv>=3)types.push('crumble');if(lv>=4)types.push('drift');if(lv>=5)types.push('spikes');let type=types[this.rows%types.length],width=type==='narrow'?80:120;const left=this.rows%2===0;const q=this.platform(left?24:396,y-35,width,type);if(this.rows%4===0)this.items.push({x:q.x+width/2,y:y-65,type:this.rows%12===0?'core':'crystal',q,offset:30});
- if(this.rows%15===0){const choices=['shield','flight','reserve'];let type=choices[Math.floor(this.random()*3)];if(type==='flight'&&(this.p.flight>0||this.time-this.flightEnd<12))type='shield';if(type==='reserve'&&this.reserves>=2)type='shield';if(type==='reserve')this.reserves++;this.items.push({x:270,y:y-30,type,q:this.platforms[this.platforms.length-2],offset:30});}
- if(lv>=6&&this.rows%7===0)this.lasers.push({x:left?0:380,w:160,y:y-70,age:0});
+ const centered=this.tutorial||lv===1;
+ const previous=this.platforms.filter(q=>q.route).sort((a,b)=>a.y-b.y)[0];
+ const from=previous?previous.x+previous.w/2:270;
+ let center=270;
+ if(!centered){
+  center=from;
+  for(let attempt=0;attempt<60;attempt++){
+   const candidate=w/2+this.random()*(C.width-w);
+   if(Math.abs(candidate-from)<60)continue;
+   if(reachable(from,candidate,100,45)&&reachable(from,candidate,100,130)){center=candidate;break;}
+  }
+  // A bounded sideways step is also reachable if rejection sampling runs out.
+  if(center===from)center=from+(from<270?100:-100);
  }
- if(this.rows%4===1)this.items.push({x:270,y:y-30,type:'crystal',q:this.platforms.find(q=>q.route&&q.y===y),offset:30});
+ const route=this.platform(center-w/2,y,w,'standard',true);
+ if(!this.tutorial){
+  const types=['standard'];if(lv>=2)types.push('narrow');if(lv>=3)types.push('crumble');if(lv>=4)types.push('drift');if(lv>=5)types.push('spikes');
+  const type=types[this.rows%types.length],width=type==='narrow'?80:120;
+  const margin=type==='drift'?20:0;
+  const x=centered?(this.rows%2===0?24:396):margin+this.random()*(C.width-width-2*margin);
+  const q=this.platform(x,y-35,width,type);
+  if(this.rows%4===0)this.items.push({x:q.x+width/2,y:y-65,type:this.rows%12===0?'core':'crystal',q,offset:30});
+  if(this.rows%15===0){const choices=['shield','flight','reserve'];let type=choices[Math.floor(this.random()*3)];if(type==='flight'&&(this.p.flight>0||this.time-this.flightEnd<12))type='shield';if(type==='reserve'&&this.reserves>=2)type='shield';if(type==='reserve')this.reserves++;this.items.push({x:center,y:y-30,type,q:route,offset:30});}
+  // Keep the warning beam outside the current and preceding landing corridor.
+  if(lv>=6&&this.rows%7===0){
+   const left=Math.min(from,center)-w/2-40,right=Math.max(from,center)+w/2+40;
+   const leftSide=left>C.width-right,span=Math.min(160,leftSide?left:C.width-right);
+   if(span>=60)this.lasers.push({x:leftSide?0:C.width-span,w:span,y:y-70,age:0});
+  }
  }
+ if(this.rows%4===1)this.items.push({x:center,y:y-30,type:'crystal',q:route,offset:30});
+ }
+
  jump(){const p=this.p;if(p.flight||(!p.ground&&p.coyote<=0))return false;p.ground=null;p.coyote=0;p.buffer=0;p.vy=-C.jump;p.manual=true;this.jumps++;this.score+=10;const level=1+Math.floor(this.jumps/15);if(level!==this.level){this.level=level;this.emit('notice','УРОВЕНЬ '+level+' · Новый сектор');}this.emit('jump');return true;}
- damage(cause){const p=this.p;if(cause!=='Пропущена платформа'&&p.inv>0)return false;if(cause!=='Пропущена платформа'&&p.shield){p.shield=false;p.inv=1.2;p.manual=false;this.combo=0;this.emit('notice','Щит поглотил удар');return false;}if(p.reserve){p.reserve=false;p.flight=0;p.inv=2;p.x=256;p.y=500;p.vx=p.vy=0;p.coyote=p.buffer=0;p.manual=false;this.combo=0;this.fill();const q=this.platform(170,540,200,'standard',true);q.visited=true;p.ground=q;this.rescue=.35;this.emit('notice','Резервный модуль · спасение');return true;}if(this.tutorial){this.p.x=256;this.p.y=740;this.p.vx=this.p.vy=0;this.fill();return true;}this.dead=true;this.cause=cause;this.emit('death',cause);return true;}
+ damage(cause){const p=this.p;if(cause!=='Пропущена платформа'&&p.inv>0)return false;if(cause!=='Пропущена платформа'&&p.shield){p.shield=false;p.inv=1.2;p.manual=false;this.combo=0;this.emit('notice','Щит поглотил удар');return false;}if(p.reserve){p.reserve=false;p.flight=0;p.inv=2;p.x=256;p.y=500;p.vx=p.vy=0;p.coyote=p.buffer=0;p.manual=false;this.combo=0;this.fill(540);this.rescue=.35;this.emit('notice','Резервный модуль · спасение');return true;}if(this.tutorial){this.p.x=256;this.p.y=740;this.p.vx=this.p.vy=0;this.fill();return true;}this.dead=true;this.cause=cause;this.emit('death',cause);return true;}
  pickup(item){const p=this.p;switch(item.type){case'crystal':this.score+=25;break;case'core':this.score+=100;break;case'shield':if(p.shield)this.score+=25;else p.shield=true;break;case'reserve':if(p.reserve)this.score+=100;else p.reserve=true;break;case'flight':p.flight=4;p.ground=null;p.coyote=0;p.buffer=0;p.manual=false;p.vy=0;this.combo=0;break;}this.emit('pickup',item.type);}
  step(input={},dt=C.step){
  if(this.dead)return;this.tick++;const inputKey=JSON.stringify(input);if(inputKey!==this.lastInput){this.inputs.push([this.tick,{...input}]);this.lastInput=inputKey;}
@@ -56,5 +94,5 @@ class Game{
  if(this.tutorial&&this.jumps>=5&&this.maxCombo>=2){this.complete=true;this.emit('tutorial');}
  }
 }
-const api={Game,C,contact};if(typeof module!=='undefined')module.exports=api;root.SpaceJumper=api;
+const api={Game,C,contact,reachable};if(typeof module!=='undefined')module.exports=api;root.SpaceJumper=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
