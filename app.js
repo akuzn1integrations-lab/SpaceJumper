@@ -248,6 +248,7 @@ function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h);}
 function line(x,y,xx,yy,color,width=1){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(xx,yy);ctx.stroke();}
 function neonGlow(color,blur=12){ctx.shadowColor=color;ctx.shadowBlur=prefs.reduced?0:blur;}
 function neonPlatform(q,time){
+ if(SpaceSprites.platform(ctx,q,time,prefs.reduced))return;
  const palette={standard:'#57eaff',narrow:'#b79aff',crumble:'#ffac55',drift:'#69ddff',spikes:'#ff6e8e'};
  const c=palette[q.type]||palette.standard;
  ctx.save();
@@ -276,6 +277,7 @@ function neonPlatform(q,time){
  ctx.restore();
 }
 function neonAstronaut(p,time){
+ if(SpaceSprites.astronaut(ctx,p,held,time,prefs.reduced))return;
  // Sprite rendering only; engine hitboxes, position and physics are untouched.
  const pose=ChibiAstronaut.stateOf(p,held,false);
  const frame=ChibiAstronaut.frame(pose,time,prefs.reduced);
@@ -313,6 +315,7 @@ function draw(){
  }
  for(const q of game.platforms)neonPlatform(q,time);
  for(const item of game.items){
+  if(SpaceSprites.pickup(ctx,item,time,prefs.reduced))continue;
   ctx.save();
   ctx.translate(item.x,item.y);
   if(!prefs.reduced)ctx.translate(0,Math.sin(time*3+item.x)*3);
@@ -340,6 +343,11 @@ function draw(){
  }
  for(const l of game.lasers){
   if(l.age>=1.65)continue;
+  if(SpaceSprites.isReady()){
+   SpaceSprites.laser(ctx,l,time,prefs.reduced);
+   if(l.age<1.2){ctx.fillStyle='#ffb289';ctx.font='13px system-ui';ctx.fillText(t('laserWarning'),l.x+10,l.y-12);}
+   continue;
+  }
   ctx.setLineDash(l.age<1.2?[8,8]:[]);
   ctx.save();neonGlow(l.age<1.2?'#ffad55':'#ff4064',16);
   line(l.x,l.y,l.x+l.w,l.y,l.age<1.2?'#e7aa76':'#ff5577',l.age<1.2?2:7);
@@ -350,6 +358,12 @@ function draw(){
   ctx.fillText(l.age<1.2?t('laserWarning'):'',l.x+10,l.y-12);
  }
  for(const m of game.mines){
+  if(SpaceSprites.isReady()){
+   SpaceSprites.mine(ctx,m,time,prefs.reduced);
+   const phase=m.age%3,active=m.age>0&&phase>=1.2&&phase<1.55,warning=phase<1.2;
+   if(warning||active){ctx.save();ctx.setLineDash(active?[]:[4,6]);for(const ray of SpaceJumper.mineRays(m))line(m.x,m.y,ray.x,ray.y,active?'#ff825e':'#bd7bd3',active?6:1.5);ctx.restore();}
+   continue;
+  }
   const phase=m.age%3,active=m.age>0&&phase>=1.2&&phase<1.55,warning=phase<1.2;
   ctx.save();neonGlow(active?'#ff587a':'#b578ff',14);
   ctx.fillStyle=active?'#fff0d2':'#c68bff';
