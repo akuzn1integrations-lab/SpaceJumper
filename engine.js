@@ -1,7 +1,7 @@
 /* SpaceJumper deterministic fixed-step simulation. No browser dependencies. */
 (function(root){
 'use strict';
-const C={width:540,height:960,gravity:1800,jump:780,speed:260,accel:2200,brake:2600,step:1/60,speeds:[45,55,65,78,92,105,118,130],bonusSize:26,mineLevel:10,version:'1.2.0'};
+const C={width:540,height:960,gravity:1800,jump:780,speed:260,accel:2200,brake:2600,step:1/60,speeds:[45,55,65,78,92,105,118,130],bonusSize:26,railInset:26,mineLevel:10,version:'1.2.0'};
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 function contact(p,old,q){
  if(p.vy<0)return null;
@@ -40,7 +40,7 @@ class Game{
  constructor(seed=Date.now(),tutorial=false){this.seed=seed>>>0;this.rng=this.seed;this.tutorial=tutorial;this.time=0;this.tick=0;this.score=0;this.jumps=0;this.combo=0;this.maxCombo=0;this.level=1;this.speed=tutorial?0:45;this.target=this.speed;this.platforms=[];this.items=[];this.lasers=[];this.mines=[];this.id=0;this.rows=0;this.reserves=0;this.flightEnd=-100;this.dead=false;this.events=[];this.inputs=[];this.lastInput='';this.p={x:256,y:740,vx:0,vy:0,ground:null,coyote:0,buffer:0,shield:false,reserve:false,flight:0,inv:0,manual:false};this.fill();}
  random(){let t=this.rng+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;}
  emit(type,text){this.events.push({type,text});}
- platform(x,y,w=160,type='standard',route=false){const q={id:++this.id,x,y,ox:x,oy:y,base:x,w,type,route,phase:this.random()*6.28,age:0,crumble:null,visited:false};if(type==='spikes'){const mode=Math.floor(this.random()*3),spikes=w-80;q.spikeLeft=mode===0?spikes:mode===2?spikes/2:0;q.spikeRight=mode===1?spikes:mode===2?spikes/2:0;}this.platforms.push(q);return q;}
+ platform(x,y,w=160,type='standard',route=false){const travel=type==='drift'?20:0;x=clamp(x,C.railInset+travel,C.width-C.railInset-w-travel);const q={id:++this.id,x,y,ox:x,oy:y,base:x,w,type,route,phase:this.random()*6.28,age:0,crumble:null,visited:false};if(type==='spikes'){const mode=Math.floor(this.random()*3),spikes=w-80;q.spikeLeft=mode===0?spikes:mode===2?spikes/2:0;q.spikeRight=mode===1?spikes:mode===2?spikes/2:0;}this.platforms.push(q);return q;}
  fill(startY=780){this.platforms=[];this.items=[];this.lasers=[];this.mines=[];const q=this.platform(170,startY,200,'standard',true);q.visited=true;this.p.ground=q;for(let y=startY-100;y>-110;y-=100)this.row(y);}
  row(y){
  this.rows++;const lv=Math.min(this.level,8),w=[180,160,145,130,120,110,100,100][lv-1];
@@ -51,12 +51,12 @@ class Game{
  if(!centered){
   center=from;
   for(let attempt=0;attempt<60;attempt++){
-   const candidate=w/2+this.random()*(C.width-w);
+   const candidate=C.railInset+w/2+this.random()*(C.width-2*C.railInset-w);
    if(Math.abs(candidate-from)<60)continue;
    if(reachable(from,candidate,100,45)&&reachable(from,candidate,100,130)){center=candidate;break;}
   }
   // A bounded sideways step is also reachable if rejection sampling runs out.
-  if(center===from)center=from+(from<270?100:-100);
+  if(center===from)center=clamp(from+(from<270?100:-100),C.railInset+w/2,C.width-C.railInset-w/2);
  }
  const route=this.platform(center-w/2,y,w,'standard',true);
  if(!this.tutorial){
@@ -65,7 +65,7 @@ class Game{
   const margin=type==='drift'?20:0;
   // Secondary platforms share a row, with a bonus-sized clear gap even at
   // maximum drift. Consecutive rows have 100 units of vertical separation.
-  const intervals=[[margin,route.x-C.bonusSize-width-margin],[route.x+route.w+C.bonusSize+margin,C.width-width-margin]].filter(([a,b])=>b>=a);
+  const intervals=[[C.railInset+margin,route.x-C.bonusSize-width-margin],[route.x+route.w+C.bonusSize+margin,C.width-C.railInset-width-margin]].filter(([a,b])=>b>=a);
   if(intervals.length){const interval=intervals[Math.floor(this.random()*intervals.length)];
    const x=interval[0]+this.random()*(interval[1]-interval[0]);
    const q=this.platform(x,y,width,type);
