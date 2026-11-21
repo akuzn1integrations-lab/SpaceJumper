@@ -302,25 +302,7 @@ function neonAstronaut(p,time){
 function draw(){
  const time=game.time,p=game.p;
  ctx.clearRect(0,0,540,960);
- const bg=ctx.createLinearGradient(0,0,540,960);
- bg.addColorStop(0,'#111a44');
- bg.addColorStop(.55,'#080f30');
- bg.addColorStop(1,'#050b1c');
- ctx.fillStyle=bg;
- ctx.fillRect(0,0,540,960);
- ctx.save();
- ctx.globalAlpha=.3;
- const nebula=ctx.createRadialGradient(420,210,20,420,210,320);
- nebula.addColorStop(0,'#4d2c9c');nebula.addColorStop(.5,'#1b2763');nebula.addColorStop(1,'#090f2800');
- ctx.fillStyle=nebula;ctx.fillRect(0,0,540,720);
- ctx.globalAlpha=.55;
- ctx.fillStyle='#183d79';ctx.beginPath();ctx.arc(30,1080,360,0,Math.PI*2);ctx.fill();
- ctx.strokeStyle='#5d9cfa';ctx.lineWidth=7;ctx.beginPath();ctx.arc(30,1080,360,3.4,5.95);ctx.stroke();
- ctx.restore();
- for(let i=0;i<95;i++){
-  const x=(i*137+43)%540,y=(i*197+(prefs.reduced?0:time*(i%3+1)*4))%960;
-  rect(x,y,i%4===0?2:1,2,i%4===0?'#a4d8ff':'#4966a0');
- }
+ SpaceBackdrop.draw(ctx,time,game.speed,prefs.reduced);
  for(const x of [16,524]){
   rect(x,0,2,960,'#314156');
   for(let y=-60;y<960;y+=120){
@@ -329,15 +311,6 @@ function draw(){
    rect(x-3,yy,2,15,'#627b8a');
   }
  }
- ctx.strokeStyle='#26364c';
- ctx.lineWidth=1;
- ctx.beginPath();
- ctx.arc(405,185,100,0,Math.PI*2);
- ctx.stroke();
- ctx.fillStyle='#16273b';
- ctx.beginPath();
- ctx.arc(405,185,85,0,Math.PI*2);
- ctx.fill();
  for(const q of game.platforms)neonPlatform(q,time);
  for(const item of game.items){
   ctx.save();
