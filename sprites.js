@@ -49,31 +49,75 @@ const SpaceSprites=(()=>{
   ctx.restore();return true;
  }
  function platform(ctx,q,time,reduced){
-  const index={standard:4,narrow:7,crumble:5,drift:6,spikes:4}[q.type]??4;
+  const isCrumble=q.type==='crumble';
+  const isNarrow=q.type==='narrow';
+  const isSpikes=q.type==='spikes';
+  const isDrift=q.type==='drift';
   ctx.save();
-  if(!reduced){ctx.shadowColor=q.type==='crumble'?'#ff9b43':'#4ddfff';ctx.shadowBlur=8+Math.sin(time*2+q.x)*2;}
-  // Keep the platform body on one stable frame. Different generated
-  // frames have different centring and visible neighbouring fragments.
-  // Animate only the glow; this prevents jumping/sliding sprite geometry.
-  const realIndex=q.type==='crumble'?12:q.type==='drift'?8:
-   q.type==='narrow'?2:q.type==='spikes'?0:0;
-  const ok=drawReal(ctx,realIndex,q.x,q.y-23,q.w,62,18)||
-   draw(ctx,index,q.x,q.y-20,q.w,63);
+  // Static light: animated shadowBlur was causing visible platform flicker.
+  ctx.shadowColor=isCrumble?'#a854ee':'#4ddfff';
+  ctx.shadowBlur=6;
+  // Narrow raster cells contain neighbouring artwork at the right edge.
+  // Use the clean dedicated SVG frame for narrow platforms.
+  // The crumbling platform has its own purple material and cracks.
+  let ok=false;
+  if(isNarrow)ok=draw(ctx,7,q.x,q.y-20,q.w,63);
+  else if(isCrumble)ok=draw(ctx,7,q.x,q.y-20,q.w,63);
+  else {
+   const realIndex=isDrift?8:0;
+   ok=drawReal(ctx,realIndex,q.x,q.y-23,q.w,62,18)||
+    draw(ctx,isDrift?6:4,q.x,q.y-20,q.w,63);
+  }
   ctx.restore();
   if(!ok)return false;
-  if(q.type==='spikes'){
-   ctx.save();ctx.shadowColor='#ff506f';ctx.shadowBlur=reduced?0:8;
-   // Respect the actual left/right spike lengths set by the game engine.
-   for(const [a,b] of [[q.x,q.x+(q.spikeLeft||0)],[q.x+q.w-(q.spikeRight||0),q.x+q.w]]){
-    for(let x=a;x<b-7;x+=11){
-     ctx.beginPath();ctx.moveTo(x,q.y);ctx.lineTo(x+5.5,q.y-15);ctx.lineTo(x+11,q.y);ctx.closePath();
-     ctx.fillStyle='#ff577a';ctx.fill();ctx.strokeStyle='#ffd0d8';ctx.lineWidth=1.2;ctx.stroke();
-    }
+  if(isCrumble){
+   // Explicit cracks and a shrinking countdown make breakable platforms
+   // unmistakable, without ever using the spike-platform artwork.
+   ctx.save();
+   ctx.strokeStyle='#ed9aff';ctx.lineWidth=2;
+   ctx.shadowColor='#c05aff';ctx.shadowBlur=5;
+   const crack=q.crumble===null?.35:Math.min(1,1-q.crumble/.7);
+   const x=q.x+q.w*.35,y=q.y-7;
+   ctx.beginPath();ctx.moveTo(x,y);
+   ctx.lineTo(x+q.w*.09,y+7+crack*3);
+   ctx.lineTo(x+q.w*.04,y+14);
+   ctx.moveTo(x+q.w*.09,y+7+crack*3);
+   ctx.lineTo(x+q.w*.22,y+4);
+   if(q.crumble!==null){
+    ctx.moveTo(x+q.w*.22,y+4);
+    ctx.lineTo(x+q.w*.3,y+15);
+   }
+   ctx.stroke();
+   if(q.crumble!==null){
+    ctx.fillStyle='#ffb36b';
+    ctx.fillRect(q.x+5,q.y-7,Math.max(0,(q.w-10)*q.crumble/.7),3);
    }
    ctx.restore();
   }
-  if(q.type==='crumble'&&q.crumble!==null){
-   ctx.fillStyle='#ffac55';ctx.fillRect(q.x,q.y-5,Math.max(0,q.w*q.crumble/.7),3);
+  if(isSpikes){
+   ctx.save();
+   ctx.shadowColor='#ff506f';ctx.shadowBlur=5;
+   // Keep spikes fully inside the visible platform silhouette, including
+   // the rounded ends. Hazard lengths in the engine remain unchanged.
+   const left=Math.max(0,q.spikeLeft||0),right=Math.max(0,q.spikeRight||0);
+   const inset=Math.min(9,q.w*.07);
+   const spans=[[q.x+inset,Math.min(q.x+left,q.x+q.w-inset)],
+    [Math.max(q.x+q.w-right,q.x+inset),q.x+q.w-inset]];
+   for(const [a,b] of spans){
+    const width=b-a;
+    if(width<5)continue;
+    const count=Math.max(1,Math.floor(width/12));
+    const step=width/count;
+    for(let i=0;i<count;i++){
+     const x=a+i*step;
+     ctx.beginPath();ctx.moveTo(x,q.y-5);
+     ctx.lineTo(x+step/2,q.y-19);
+     ctx.lineTo(x+step,q.y-5);ctx.closePath();
+     ctx.fillStyle='#ff577a';ctx.fill();
+     ctx.strokeStyle='#ffd0d8';ctx.lineWidth=1;ctx.stroke();
+    }
+   }
+   ctx.restore();
   }
   return true;
  }
