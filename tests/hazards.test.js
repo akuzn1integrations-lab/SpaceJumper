@@ -33,7 +33,7 @@ test('mine progression and short rays',()=>{
 test('mine warning is harmless, active rays damage and shield/reserve apply',()=>{
  for(const [age,shield,reserve,dead] of [[.4,false,false,false],[1.21,false,false,true],[1.21,true,false,false],[1.21,false,true,false],[2,false,false,false]]){
   const g=new Game(3);g.p.x=250;g.p.y=400;g.p.ground=null;g.p.shield=shield;g.p.reserve=reserve;
-  g.mines=[{x:220,y:420,age,count:1,angle:0,range:90}];g.step();assert.equal(g.dead,dead);if(dead)assert.equal(g.cause,'Лазерная мина');if(shield)assert.equal(g.p.shield,false);if(reserve){assert.equal(g.p.reserve,false);assert.equal(g.mines.length,0);}
+   g.mines=[{x:220,y:420,age,count:1,angle:0,range:90}];g.step();assert.equal(g.dead,dead);if(dead)assert.equal(g.cause,'mine');if(shield)assert.equal(g.p.shield,false);if(reserve){assert.equal(g.p.reserve,false);assert.equal(g.mines.length,0);}
  }
  assert.ok(beamHits(0,0,100,100,{x:45,y:45}));assert.equal(beamHits(0,0,10,10,{x:45,y:45}),false);
 });

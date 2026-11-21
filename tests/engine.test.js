@@ -22,9 +22,9 @@ test('buffered landing launches one jump',()=>{
  const g=new Game(1);g.platforms=[];g.items=[];const q=g.platform(170,500,200);g.p.ground=null;g.p.x=250;g.p.y=459;g.p.vy=200;g.step({jump:true});assert.equal(g.jumps,1);assert.ok(g.p.vy<0);assert.equal(g.p.ground,null);
 });
 test('shield, invulnerability, bottom and rescue priority',()=>{
- const g=new Game(2);g.p.shield=true;g.damage('Шипы');assert.equal(g.p.shield,false);assert.equal(g.dead,false);assert.equal(g.p.inv,1.2);
- g.damage('Лазер');assert.equal(g.dead,false);g.p.reserve=true;g.damage('Пропущена платформа');assert.equal(g.p.reserve,false);assert.equal(g.dead,false);assert.equal(g.p.y,500);
- g.damage('Пропущена платформа');assert.equal(g.dead,true);
+ const g=new Game(2);g.p.shield=true;g.damage('spikes');assert.equal(g.p.shield,false);assert.equal(g.dead,false);assert.equal(g.p.inv,1.2);
+ g.damage('laser');assert.equal(g.dead,false);g.p.reserve=true;g.damage('fall');assert.equal(g.p.reserve,false);assert.equal(g.dead,false);assert.equal(g.p.y,500);
+ g.damage('fall');assert.equal(g.dead,true);
 });
 test('flight suppresses jumps and ends with gravity restored',()=>{
  const g=new Game(3);g.pickup({type:'flight'});g.step({jump:true,hold:true});assert.equal(g.jumps,0);assert.equal(g.combo,0);for(let i=0;i<250;i++)g.step({});assert.equal(g.p.flight,0);assert.ok(g.flightEnd>0);

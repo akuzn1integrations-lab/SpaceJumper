@@ -83,8 +83,8 @@ class Game{
  if(this.rows%4===1)this.items.push({x:center,y:y-30,type:'crystal',q:route,offset:30});
  }
 
- jump(){const p=this.p;if(p.flight||(!p.ground&&p.coyote<=0))return false;p.ground=null;p.coyote=0;p.buffer=0;p.vy=-C.jump;p.manual=true;this.jumps++;this.score+=10;const level=1+Math.floor(this.jumps/15);if(level!==this.level){this.level=level;this.emit('notice','УРОВЕНЬ '+level+' · Новый сектор');}this.emit('jump');return true;}
- damage(cause){const p=this.p;if(cause!=='Пропущена платформа'&&p.inv>0)return false;if(cause!=='Пропущена платформа'&&p.shield){p.shield=false;p.inv=1.2;p.manual=false;this.combo=0;this.emit('notice','Щит поглотил удар');return false;}if(p.reserve){p.reserve=false;p.flight=0;p.inv=2;p.x=256;p.y=500;p.vx=p.vy=0;p.coyote=p.buffer=0;p.manual=false;this.combo=0;this.fill(540);this.rescue=.35;this.emit('notice','Резервный модуль · спасение');return true;}if(this.tutorial){this.p.x=256;this.p.y=740;this.p.vx=this.p.vy=0;this.fill();return true;}this.dead=true;this.cause=cause;this.emit('death',cause);return true;}
+ jump(){const p=this.p;if(p.flight||(!p.ground&&p.coyote<=0))return false;p.ground=null;p.coyote=0;p.buffer=0;p.vy=-C.jump;p.manual=true;this.jumps++;this.score+=10;const level=1+Math.floor(this.jumps/15);if(level!==this.level){this.level=level;this.emit('notice',{key:'levelUp',level});}this.emit('jump');return true;}
+ damage(cause){const p=this.p;if(cause!=='fall'&&p.inv>0)return false;if(cause!=='fall'&&p.shield){p.shield=false;p.inv=1.2;p.manual=false;this.combo=0;this.emit('notice',{key:'shieldHit'});return false;}if(p.reserve){p.reserve=false;p.flight=0;p.inv=2;p.x=256;p.y=500;p.vx=p.vy=0;p.coyote=p.buffer=0;p.manual=false;this.combo=0;this.fill(540);this.rescue=.35;this.emit('notice',{key:'rescue'});return true;}if(this.tutorial){this.p.x=256;this.p.y=740;this.p.vx=this.p.vy=0;this.fill();return true;}this.dead=true;this.cause=cause;this.emit('death',cause);return true;}
  pickup(item){const p=this.p;switch(item.type){case'crystal':this.score+=25;break;case'core':this.score+=100;break;case'shield':if(p.shield)this.score+=25;else p.shield=true;break;case'reserve':if(p.reserve)this.score+=100;else p.reserve=true;break;case'flight':p.flight=4;p.ground=null;p.coyote=0;p.buffer=0;p.manual=false;p.vy=0;this.combo=0;break;}this.emit('pickup',item.type);}
  step(input={},dt=C.step){
  if(this.dead)return;this.tick++;const inputKey=JSON.stringify(input);if(inputKey!==this.lastInput){this.inputs.push([this.tick,{...input}]);this.lastInput=inputKey;}
@@ -100,15 +100,15 @@ class Game{
  if(p.ground&&(p.x+28<=p.ground.x||p.x>=p.ground.x+p.ground.w)){p.ground=null;p.coyote=.09;p.vy=this.speed;}
  if(p.buffer>0)this.jump();
  let landing=null;
- if(p.flight>0){p.flight=Math.max(0,p.flight-dt);p.y-=input.hold?100*dt:0;p.vy=0;if(!p.flight){this.flightEnd=this.time;this.emit('notice','Полёт завершён');}}
+ if(p.flight>0){p.flight=Math.max(0,p.flight-dt);p.y-=input.hold?100*dt:0;p.vy=0;if(!p.flight){this.flightEnd=this.time;this.emit('notice',{key:'flightEnd'});}}
  else if(!p.ground){p.vy=Math.min(1000,p.vy+C.gravity*dt);p.y+=p.vy*dt;const hits=this.platforms.map(q=>contact(p,old,q)).filter(Boolean).sort((a,b)=>a.t-b.t);if(hits.length){landing=hits[0];const q=landing.q;p.ground=q;p.y=q.y-40;p.vy=0;p.coyote=0;if(q.type==='crumble'&&q.crumble===null)q.crumble=.7;}}
  if(p.y<0){p.y=0;p.vy=0;}
  for(const l of this.lasers){l.y+=this.speed*dt;if(l.y>=160)l.age+=dt;}this.lasers=this.lasers.filter(l=>l.y<960&&l.age<6);
  for(const m of this.mines){m.y+=this.speed*dt;if(m.y>=160)m.age+=dt;}this.mines=this.mines.filter(m=>m.y<1060);
- if(p.y+40>=900){this.damage('Пропущена платформа');return;}
- if(landing&&landing.q.type==='spikes'){const q=landing.q;if((q.spikeLeft&&landing.x<landing.qx+q.spikeLeft)||(q.spikeRight&&landing.x+28>landing.qx+q.w-q.spikeRight)){if(this.damage('Шипы'))return;}}
- for(const l of this.lasers){if(l.age>=1.2&&l.age<1.65&&p.x+28>l.x&&p.x<l.x+l.w&&p.y<l.y+5&&p.y+40>l.y-5){if(this.damage('Лазер'))return;}}
- for(const m of this.mines){const phase=m.age%3;if(m.age>0&&phase>=1.2&&phase<1.55&&mineRays(m).some(r=>beamHits(m.x,m.y,r.x,r.y,p))){if(this.damage('Лазерная мина'))return;}}
+ if(p.y+40>=900){this.damage('fall');return;}
+ if(landing&&landing.q.type==='spikes'){const q=landing.q;if((q.spikeLeft&&landing.x<landing.qx+q.spikeLeft)||(q.spikeRight&&landing.x+28>landing.qx+q.w-q.spikeRight)){if(this.damage('spikes'))return;}}
+ for(const l of this.lasers){if(l.age>=1.2&&l.age<1.65&&p.x+28>l.x&&p.x<l.x+l.w&&p.y<l.y+5&&p.y+40>l.y-5){if(this.damage('laser'))return;}}
+ for(const m of this.mines){const phase=m.age%3;if(m.age>0&&phase>=1.2&&phase<1.55&&mineRays(m).some(r=>beamHits(m.x,m.y,r.x,r.y,p))){if(this.damage('mine'))return;}}
  this.items=this.items.filter(item=>{if(!this.platforms.includes(item.q))return false;item.x=item.q.x+item.q.w/2;item.y=item.q.y-item.offset;if(Math.abs(p.x+14-item.x)<28&&Math.abs(p.y+20-item.y)<35){this.pickup(item);return false;}return item.y<960;});
  if(landing){const q=landing.q;if(!q.visited){this.score+=20*Math.min(1+Math.floor(this.combo/5),4);const safe=safeSpan(q);if(Math.abs(p.x+14-(safe.x+safe.w/2))<=safe.w*.15)this.score+=10;if(p.manual)this.combo++;this.maxCombo=Math.max(this.maxCombo,this.combo);q.visited=true;}else this.combo=0;p.manual=false;this.target=this.tutorial?25:C.speeds[Math.min(this.level,8)-1];this.emit('land');if(p.buffer>0)this.jump();}
  const top=Math.min(...this.platforms.filter(q=>q.route).map(q=>q.y));if(top>-10)this.row(top-100);
