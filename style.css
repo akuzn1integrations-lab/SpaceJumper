@@ -38,3 +38,49 @@ body{background:#050b1c;color:#e8f8ff}
 .touch button:last-child{background:#75edffdf;color:#092339}
 dialog{background:#0b1833;border-color:#4cbde6}
 @media(prefers-reduced-motion:reduce){.touch button,.hud .icon,.primary{box-shadow:none}}
+
+
+/* Large level transition: responsive to the actual portrait playfield width. */
+.game-frame{container-type:inline-size}
+#notice:has(.level-up-title){
+ top:27%;
+ left:5%;
+ width:90%;
+ padding:12px 8px 15px;
+ z-index:2;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:center;
+ gap:4px;
+ border:1px solid #64eaff88;
+ border-radius:14px;
+ background:linear-gradient(90deg,#07132be8,#14244bf0,#07132be8);
+ box-shadow:0 0 24px #37dfff55,inset 0 0 18px #2eafff22;
+ line-height:1.05;
+ white-space:normal;
+ overflow-wrap:normal;
+}
+#notice .level-up-title{
+ display:block;
+ width:100%;
+ font-size:clamp(18px,8cqw,44px);
+ font-weight:900;
+ letter-spacing:.015em;
+ color:#f2fcff;
+ text-shadow:0 0 15px #63eaff;
+ white-space:nowrap;
+}
+#notice .level-up-subtitle{
+ display:block;
+ width:100%;
+ font-size:clamp(12px,4.1cqw,22px);
+ font-weight:750;
+ letter-spacing:.04em;
+ color:#8ef1ff;
+ white-space:nowrap;
+}
+@media(prefers-reduced-motion:reduce){
+ #notice:has(.level-up-title){box-shadow:none}
+ #notice .level-up-title{ text-shadow:none }
+}
