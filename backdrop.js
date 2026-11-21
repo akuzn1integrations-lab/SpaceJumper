@@ -4,6 +4,15 @@
 const SpaceBackdrop=(()=>{
  const W=540,H=960;
  let layers=null;
+ // Prefer the authored full-resolution image. Procedural scenery remains a
+ // graceful fallback until the binary asset is present in assets/background/.
+ const photo=new Image();
+ let photoReady=false;
+ photo.decoding='async';
+ photo.onload=()=>{photoReady=true;};
+ photo.onerror=()=>{photoReady=false;};
+ photo.src='assets/background/spacejumper-background.webp';
+
  function rng(seed){return ()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};}
  function layer(){const c=document.createElement('canvas');c.width=W;c.height=H;return [c,c.getContext('2d')];}
  function ellipse(g,x,y,rx,ry,color,rotation=0){g.save();g.translate(x,y);g.rotate(rotation);g.fillStyle=color;g.beginPath();g.ellipse(0,0,rx,ry,0,0,Math.PI*2);g.fill();g.restore();}
@@ -77,6 +86,24 @@ const SpaceBackdrop=(()=>{
   return {base,foreground};
  }
  function draw(ctx,time,speed,reduced){
+  if(photoReady&&photo.naturalWidth>0){
+   // Image is a 9:16 portrait. Crop to fill 540x960 without stretching.
+   const ratio=Math.max(W/photo.naturalWidth,H/photo.naturalHeight);
+   const dw=photo.naturalWidth*ratio,dh=photo.naturalHeight*ratio;
+   ctx.drawImage(photo,(W-dw)/2,(H-dh)/2,dw,dh);
+   // Light veil maintains contrast for bright hazards and cyan platforms.
+   ctx.fillStyle='rgba(1,6,18,.14)';
+   ctx.fillRect(0,0,W,H);
+   // Gentle foreground drift; static backdrop when reduced motion is enabled.
+   if(!reduced){
+    ctx.fillStyle='rgba(157,211,255,.55)';
+    for(let i=0;i<34;i++){
+     const x=(i*173+31)%W,y=(i*239+time*Math.min(speed||45,180)*.035*(1+i%3))%H;
+     ctx.fillRect(x,y,1.2,1.2);
+    }
+   }
+   return;
+  }
   layers??=make();
   ctx.drawImage(layers.base,0,0);
   // Transparent moving dust creates depth without making obstacles less visible.
