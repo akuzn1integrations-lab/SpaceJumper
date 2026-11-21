@@ -57,17 +57,12 @@ const SpaceSprites=(()=>{
   // Static light: animated shadowBlur was causing visible platform flicker.
   ctx.shadowColor=isCrumble?'#a854ee':'#4ddfff';
   ctx.shadowBlur=6;
-  // Narrow raster cells contain neighbouring artwork at the right edge.
-  // Use the clean dedicated SVG frame for narrow platforms.
-  // The crumbling platform has its own purple material and cracks.
-  let ok=false;
-  if(isNarrow)ok=draw(ctx,4,q.x,q.y-20,q.w,63);
-  else if(isCrumble)ok=draw(ctx,7,q.x,q.y-20,q.w,63);
-  else {
-   const realIndex=isDrift?8:0;
-   ok=drawReal(ctx,realIndex,q.x,q.y-23,q.w,62,18)||
-    draw(ctx,isDrift?6:4,q.x,q.y-20,q.w,63);
-  }
+  // All platform types use the same full-depth metal body. The narrow
+  // platform is resized in width only; its vertical thickness stays fixed.
+  // A single, trimmed source frame avoids the atlas' right-edge artefact.
+  const realIndex=isDrift?8:0;
+  const ok=drawReal(ctx,realIndex,q.x,q.y-23,q.w,62,18)||
+   draw(ctx,isCrumble?7:isDrift?6:4,q.x,q.y-20,q.w,63);
   ctx.restore();
   if(!ok)return false;
   if(isCrumble){
@@ -178,11 +173,12 @@ const SpaceSprites=(()=>{
   const index={crystal:9,core:10,shield:12,flight:15,reserve:14}[item.type];
   if(index===undefined)return false;
   const bob=reduced?0:Math.sin(time*3+item.x)*3;
-  const scale=reduced?1:1+Math.sin(time*4+item.x)*.055;
+  // All pickups use square source cells and uniform scale. Raster cells
+  // were wide 256×128 crops, stretching tall crystals horizontally.
+  const scale=reduced?1:1+Math.sin(time*4+item.x)*.035;
   ctx.save();ctx.translate(item.x,item.y+bob);ctx.scale(scale,scale);
-  if(!reduced){ctx.shadowColor=item.type==='core'?'#ffbd50':'#54eaff';ctx.shadowBlur=9;}
-  const realIndex={crystal:26,core:27,shield:29,flight:28,reserve:30}[item.type];
-  const ok=drawReal(ctx,realIndex,-17,-19,34,38)||draw(ctx,index,-17,-19,34,38);
+  if(!reduced){ctx.shadowColor=item.type==='core'?'#ffbd50':'#54eaff';ctx.shadowBlur=7;}
+  const ok=draw(ctx,index,-17,-19,34,38);
   ctx.restore();return ok;
  }
  function mine(ctx,m,time,reduced){
