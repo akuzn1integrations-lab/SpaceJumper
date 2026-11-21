@@ -8,6 +8,16 @@ const SpaceSprites=(()=>{
  image.onerror=()=>{ready=false;};
  image.src='assets/sprites/neon-atlas.svg';
  const W=128;
+ const raster=new Image();
+ let rasterReady=false;
+ raster.onload=()=>{rasterReady=true;};
+ raster.onerror=()=>{rasterReady=false;};
+ raster.src='assets/sprites/astronaut-chibi-atlas.webp';
+ function drawRaster(ctx,index,x,y,w,h){
+  if(!rasterReady)return false;
+  ctx.drawImage(raster,(index%4)*128,Math.floor(index/4)*128,128,128,x,y,w,h);
+  return true;
+ }
  const astronautAtlas=new Image();
  let astronautReady=false,lastFacing=1;
  astronautAtlas.onload=()=>{astronautReady=true;};
@@ -66,10 +76,15 @@ const SpaceSprites=(()=>{
   ctx.save();ctx.translate(cx,cy);
   // Source side-profile sprites face right. Mirror on left input.
   // The last direction persists after the key is released.
-  if(side&&lastFacing<0)ctx.scale(-1,1);
+  if(side&&lastFacing<0&&!rasterReady)ctx.scale(-1,1);
   if((airborne||p.flight>0)&&!reduced)draw(ctx,30,-17,15,33,47,.75);
   if(p.shield)draw(ctx,24,-38,-44,76,82,.85);
-  const ok=drawAstronautFrame(ctx,index,-34,-36,68,72);
+  // High-detail transparent raster sprite takes precedence over SVG.
+  // Atlas layout: idle 0–3, running 4–7, side-facing 8–11, jump/land/hurt 12–15.
+  const rasterIndex=hurt?15:airborne?13:falling?14:running?8+(reduced?0:Math.floor(time*12)%4):reduced?0:Math.floor(time*4)%4;
+  // Side-facing images point right; mirror on left. Front-facing images remain unflipped.
+  if(rasterReady&&lastFacing<0&&rasterIndex>=8&&rasterIndex<=14)ctx.scale(-1,1);
+  const ok=drawRaster(ctx,rasterIndex,-34,-36,68,72)||drawAstronautFrame(ctx,index,-34,-36,68,72);
   ctx.restore();
   return ok;
  }
