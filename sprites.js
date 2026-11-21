@@ -60,7 +60,7 @@ const SpaceSprites=(()=>{
   if(hurt)index=20+(reduced?0:Math.floor(time*7)%4);
   else if(airborne||falling)index=10+(reduced?0:Math.floor(time*9)%6);
   else if(running)index=4+(reduced?0:Math.floor(time*12)%6);
-  else index=lastFacing===1?28+(reduced?0:Math.floor(time*3)%4):0+(reduced?0:Math.floor(time*3)%4);
+  else index=28+(reduced?0:Math.floor(time*3)%4);
   const side=index>=4&&index<16||index>=28;
   const cx=p.x+13,cy=p.y+19;
   ctx.save();ctx.translate(cx,cy);
