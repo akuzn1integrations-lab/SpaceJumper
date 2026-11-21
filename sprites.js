@@ -60,32 +60,54 @@ const SpaceSprites=(()=>{
  function astronaut(ctx,p,held,time,reduced){
   if(held.left&&!held.right)lastFacing=-1;
   else if(held.right&&!held.left)lastFacing=1;
-  if(!astronautReady)return false;
+  if(!astronautReady&&!rasterReady)return false;
   const hurt=p.inv>0;
   if(hurt&&Math.floor(time*12)%2===0)return true;
   const airborne=p.vy<0||p.flight>0;
   const running=!!(held.left||held.right);
   const falling=p.vy>140;
-  let index;
-  if(hurt)index=20+(reduced?0:Math.floor(time*7)%4);
-  else if(airborne||falling)index=10+(reduced?0:Math.floor(time*9)%6);
-  else if(running)index=4+(reduced?0:Math.floor(time*12)%6);
-  else index=28+(reduced?0:Math.floor(time*3)%4);
+  const index=hurt?20+(reduced?0:Math.floor(time*7)%4):
+   (airborne||falling)?10+(reduced?0:Math.floor(time*9)%6):
+   running?4+(reduced?0:Math.floor(time*12)%6):28+(reduced?0:Math.floor(time*3)%4);
+  const rasterIndex=hurt?15:airborne?13:falling?14:running?8+(reduced?0:Math.floor(time*12)%4):8;
   const side=index>=4&&index<16||index>=28;
   const cx=p.x+13,cy=p.y+19;
-  ctx.save();ctx.translate(cx,cy);
-  // Source side-profile sprites face right. Mirror on left input.
-  // The last direction persists after the key is released.
-  if(side&&lastFacing<0&&!rasterReady)ctx.scale(-1,1);
-  if((airborne||p.flight>0)&&!reduced)draw(ctx,30,-17,15,33,47,.75);
-  if(p.shield)draw(ctx,24,-38,-44,76,82,.85);
-  // High-detail transparent raster sprite takes precedence over SVG.
-  // Atlas layout: idle 0–3, running 4–7, side-facing 8–11, jump/land/hurt 12–15.
-  const rasterIndex=hurt?15:airborne?13:falling?14:running?8+(reduced?0:Math.floor(time*12)%4):8;
-  // Side-facing images point right; mirror on left. Front-facing images remain unflipped.
-  if(rasterReady&&lastFacing<0&&rasterIndex>=8&&rasterIndex<=14)ctx.scale(-1,1);
-  const ok=drawRaster(ctx,rasterIndex,-34,-36,68,72)||drawAstronautFrame(ctx,index,-34,-36,68,72);
+  ctx.save();
+  // Exhaust is a world-space vertical effect. It must never inherit the
+  // character's left/right mirroring or the diagonal shape of atlas frame 30.
+  if(airborne&&!reduced){
+   const flicker=Math.sin(time*22)*4;
+   ctx.save();
+   ctx.fillStyle='#28cfff';ctx.shadowColor='#46eaff';ctx.shadowBlur=12;
+   ctx.beginPath();
+   ctx.moveTo(cx-7,cy+24);ctx.lineTo(cx,cy+47+flicker);
+   ctx.lineTo(cx+7,cy+24);ctx.closePath();ctx.fill();
+   ctx.fillStyle='#e1ffff';ctx.beginPath();
+   ctx.moveTo(cx-3,cy+26);ctx.lineTo(cx,cy+38+flicker*.5);
+   ctx.lineTo(cx+3,cy+26);ctx.closePath();ctx.fill();
+   ctx.restore();
+  }
+  ctx.translate(cx,cy);
+  // Flip the astronaut only; the jet exhaust stays vertical.
+  const facingLeft=lastFacing<0;
+  if(facingLeft&&(rasterReady?rasterIndex>=8&&rasterIndex<=14:side))ctx.scale(-1,1);
+  const ok=(rasterReady&&drawRaster(ctx,rasterIndex,-34,-36,68,72))||
+   drawAstronautFrame(ctx,index,-34,-36,68,72);
   ctx.restore();
+  // Shield indicator floats above the helmet, leaving the character unobscured.
+  if(p.shield){
+   ctx.save();
+   const bob=reduced?0:Math.sin(time*3)*2;
+   ctx.translate(cx,cy-51+bob);
+   if(!reduced){ctx.shadowColor='#5deaff';ctx.shadowBlur=10;}
+   if(!draw(ctx,12,-12,-14,24,28)){
+    ctx.strokeStyle='#7ceaff';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(10,-6);
+    ctx.lineTo(9,5);ctx.lineTo(0,12);ctx.lineTo(-9,5);
+    ctx.lineTo(-10,-6);ctx.closePath();ctx.stroke();
+   }
+   ctx.restore();
+  }
   return ok;
  }
  function pickup(ctx,item,time,reduced){
