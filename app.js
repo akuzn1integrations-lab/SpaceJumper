@@ -426,6 +426,24 @@ function draw(){
   $('notice').textContent='';
  }
 }
+function showGameNotice(event){
+ const node=$('notice');
+ const message=I18n.notice(lang,event);
+ node.replaceChildren();
+ node.classList.toggle('level-up',event?.key==='levelUp');
+ if(event?.key==='levelUp'){
+  // Two separately sized lines prevent long localized text from overflowing.
+  const title=document.createElement('span');
+  title.className='level-up-title';
+  title.textContent=lang==='ru'?'УРОВЕНЬ '+event.level:'LEVEL '+event.level;
+  const subtitle=document.createElement('span');
+  subtitle.className='level-up-subtitle';
+  subtitle.textContent=lang==='ru'?'НОВЫЙ СЕКТОР':'NEW SECTOR';
+  node.append(title,subtitle);
+ }else{
+  node.textContent=message;
+ }
+}
 function frame(now){
  const elapsed=Math.min((now-last)/1000,.1);
  last=now;
@@ -438,7 +456,7 @@ function frame(now){
    for(const e of game.events){
     if(['jump','land','pickup'].includes(e.type))sound(e.type);
     if(e.type==='notice'){
-     $('notice').textContent=I18n.notice(lang,e.text);
+     showGameNotice(e.text);
      noticeUntil=game.time+2;
     }
    }
