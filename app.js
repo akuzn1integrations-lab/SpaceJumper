@@ -276,22 +276,27 @@ function neonPlatform(q,time){
  ctx.restore();
 }
 function neonAstronaut(p,time){
- ctx.save();ctx.translate(p.x+13,p.y+19);
+ // Sprite rendering only; engine hitboxes, position and physics are untouched.
+ const pose=ChibiAstronaut.stateOf(p,held,false);
+ const frame=ChibiAstronaut.frame(pose,time,prefs.reduced);
+ ctx.save();
  if(p.inv>0&&Math.floor(time*12)%2===0){ctx.restore();return;}
- if(p.shield){ctx.strokeStyle='#79e9ff';ctx.lineWidth=2;neonGlow('#6ee9ff',12);ctx.beginPath();ctx.ellipse(0,1,32,40,0,0,Math.PI*2);ctx.stroke();}
- if(p.vy<0||p.flight>0){
-  ctx.fillStyle='#49dcff';neonGlow('#2fcfff',17);
-  ctx.beginPath();ctx.moveTo(-9,26);ctx.lineTo(-3,49+(prefs.reduced?0:Math.sin(time*22)*5));ctx.lineTo(3,26);ctx.fill();
+ const cx=p.x+13,cy=p.y+19;
+ if(p.shield){
+  ctx.strokeStyle='#7ceaff';ctx.lineWidth=2;
+  neonGlow('#63eaff',12);
+  ctx.beginPath();ctx.ellipse(cx,cy,30,37,0,0,Math.PI*2);ctx.stroke();
+ }
+ if((p.vy<0||p.flight>0)&&!prefs.reduced){
+  ctx.fillStyle='#3bdfff';neonGlow('#24d5ff',17);
+  ctx.beginPath();ctx.moveTo(cx-10,cy+24);ctx.lineTo(cx-3,cy+48+Math.sin(time*23)*5);ctx.lineTo(cx+4,cy+24);ctx.closePath();ctx.fill();
  }
  ctx.shadowBlur=0;
- ctx.fillStyle='#a8bdd2';ctx.fillRect(-13,20,10,16);ctx.fillRect(8,20,10,16);
- ctx.fillStyle='#f0f6ff';ctx.strokeStyle='#6486ac';ctx.lineWidth=3;
- ctx.beginPath();ctx.roundRect(-21,-7,42,42,12);ctx.fill();ctx.stroke();
- ctx.fillStyle='#ffab55';ctx.fillRect(-25,3,7,20);ctx.fillRect(19,3,7,20);
- ctx.fillStyle='#dceaff';ctx.beginPath();ctx.arc(0,-20,26,0,Math.PI*2);ctx.fill();ctx.stroke();
- ctx.fillStyle='#0b355a';ctx.beginPath();ctx.ellipse(2,-20,20,16,0,0,Math.PI*2);ctx.fill();
- ctx.strokeStyle='#7ff3ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(3,-23,14,3.7,5.4);ctx.stroke();
- rect(-8,8,16,7,'#65f1ff');
+ // 60×60 pixel visual footprint; 96×96 pre-rendered sprite scales down.
+ // Flip horizontally when moving left, without affecting collision coordinates.
+ ctx.translate(cx,cy);
+ if(held.left&&!held.right)ctx.scale(-1,1);
+ if(frame)ctx.drawImage(frame,-30,-30,60,60);
  ctx.restore();
 }
 function draw(){
