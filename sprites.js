@@ -8,6 +8,16 @@ const SpaceSprites=(()=>{
  image.onerror=()=>{ready=false;};
  image.src='assets/sprites/neon-atlas.svg';
  const W=128;
+ const realistic=new Image();
+ let realisticReady=false;
+ realistic.onload=()=>{realisticReady=true;};
+ realistic.onerror=()=>{realisticReady=false;};
+ realistic.src='assets/sprites/spacejumper-realistic-assets.webp';
+ function drawReal(ctx,index,x,y,w,h){
+  if(!realisticReady)return false;
+  ctx.drawImage(realistic,(index%8)*256,Math.floor(index/8)*128,256,128,x,y,w,h);
+  return true;
+ }
  const raster=new Image();
  let rasterReady=false;
  raster.onload=()=>{rasterReady=true;};
@@ -38,7 +48,8 @@ const SpaceSprites=(()=>{
   const index={standard:4,narrow:7,crumble:5,drift:6,spikes:4}[q.type]??4;
   ctx.save();
   if(!reduced){ctx.shadowColor=q.type==='crumble'?'#ff9b43':'#4ddfff';ctx.shadowBlur=8+Math.sin(time*2+q.x)*2;}
-  const ok=draw(ctx,index,q.x,q.y-20,q.w,63);
+  const realIndex=q.type==='crumble'?12+(q.crumble===null?0:Math.min(1,Math.floor((.7-q.crumble)*2))):q.type==='drift'?8+(reduced?0:Math.floor(time*5)%4):q.type==='narrow'?2:q.type==='spikes'?0:q.type==='standard'?(reduced?0:Math.floor(time*3)%4):0;
+  const ok=drawReal(ctx,realIndex,q.x,q.y-23,q.w,62)||draw(ctx,index,q.x,q.y-20,q.w,63);
   ctx.restore();
   if(!ok)return false;
   if(q.type==='spikes'){
@@ -117,14 +128,16 @@ const SpaceSprites=(()=>{
   const scale=reduced?1:1+Math.sin(time*4+item.x)*.055;
   ctx.save();ctx.translate(item.x,item.y+bob);ctx.scale(scale,scale);
   if(!reduced){ctx.shadowColor=item.type==='core'?'#ffbd50':'#54eaff';ctx.shadowBlur=9;}
-  const ok=draw(ctx,index,-17,-19,34,38);
+  const realIndex={crystal:26,core:27,shield:29,flight:28,reserve:30}[item.type];
+  const ok=drawReal(ctx,realIndex,-17,-19,34,38)||draw(ctx,index,-17,-19,34,38);
   ctx.restore();return ok;
  }
  function mine(ctx,m,time,reduced){
   const n=m.count>=8?21:m.count>=4?20:m.count>=2?19:18;
   ctx.save();ctx.translate(m.x,m.y);
   if(!reduced)ctx.rotate(time*.5);
-  const ok=draw(ctx,n,-23,-23,46,46);
+  const realIndex=m.count>=8?25:m.count>=4?24:m.count>=2?23:22;
+  const ok=drawReal(ctx,realIndex,-23,-23,46,46)||draw(ctx,n,-23,-23,46,46);
   ctx.restore();return ok;
  }
  function laser(ctx,l,time,reduced){
@@ -137,8 +150,8 @@ const SpaceSprites=(()=>{
   ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(l.x+l.w,l.y);ctx.stroke();
   ctx.setLineDash([]);
   if(active){ctx.strokeStyle='#fff1df';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(l.x+l.w,l.y);ctx.stroke();}
-  const ok=draw(ctx,17,l.x-15,l.y-19,30,38);
+  const ok=drawReal(ctx,19+(active?2:0),l.x-20,l.y-23,40,46)||draw(ctx,17,l.x-15,l.y-19,30,38);
   ctx.restore();return ok;
  }
- return Object.freeze({draw,platform,astronaut,pickup,mine,laser,isReady:()=>ready});
+ return Object.freeze({draw,platform,astronaut,pickup,mine,laser,isReady:()=>ready||realisticReady});
 })();
