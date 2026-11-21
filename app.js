@@ -285,13 +285,18 @@ function neonAstronaut(p,time){
  if(p.inv>0&&Math.floor(time*12)%2===0){ctx.restore();return;}
  const cx=p.x+13,cy=p.y+19;
  if(p.shield){
+  const bob=prefs.reduced?0:Math.sin(time*3)*2;
   ctx.strokeStyle='#7ceaff';ctx.lineWidth=2;
-  neonGlow('#63eaff',12);
-  ctx.beginPath();ctx.ellipse(cx,cy,30,37,0,0,Math.PI*2);ctx.stroke();
+  neonGlow('#63eaff',9);
+  ctx.beginPath();
+  ctx.moveTo(cx,cy-63+bob);ctx.lineTo(cx+10,cy-58+bob);
+  ctx.lineTo(cx+9,cy-47+bob);ctx.lineTo(cx,cy-40+bob);
+  ctx.lineTo(cx-9,cy-47+bob);ctx.lineTo(cx-10,cy-58+bob);
+  ctx.closePath();ctx.stroke();
  }
  if((p.vy<0||p.flight>0)&&!prefs.reduced){
   ctx.fillStyle='#3bdfff';neonGlow('#24d5ff',17);
-  ctx.beginPath();ctx.moveTo(cx-10,cy+24);ctx.lineTo(cx-3,cy+48+Math.sin(time*23)*5);ctx.lineTo(cx+4,cy+24);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx-7,cy+24);ctx.lineTo(cx,cy+48+Math.sin(time*23)*5);ctx.lineTo(cx+7,cy+24);ctx.closePath();ctx.fill();
  }
  ctx.shadowBlur=0;
  // 60×60 pixel visual footprint; 96×96 pre-rendered sprite scales down.
