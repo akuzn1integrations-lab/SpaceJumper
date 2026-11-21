@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $stage = Join-Path $root 'build\spacejumper'
 $zip = Join-Path $root 'build\spacejumper.zip'
-$files = @('index.html','style.css','engine.js','music.js','i18n.js','platform.js','app.js')
+$files = @('index.html','style.css','engine.js','music.js','i18n.js','platform.js','chibi.js','app.js')
 
 Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item $zip -Force -ErrorAction SilentlyContinue
