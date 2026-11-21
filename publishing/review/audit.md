@@ -63,7 +63,7 @@ git status --short
 
 Если проект уже скачан, не повторяйте git clone: перейдите в его каталог и выполните git pull --ff-only. Если git status показывает локальные изменения, сначала сохраните их (commit/stash) и только затем обновляйтесь. Не применяйте git reset --hard без резервной копии.
 
-**Критерий:** файлы index.html, app.js, engine.js, music.js, i18n.js, platform.js, style.css, scripts/build.ps1 и tests/ присутствуют; git status --short не показывает неожиданных изменений.
+**Критерий:** файлы index.html, app.js, engine.js, music.js, i18n.js, platform.js, chibi.js, style.css, scripts/build.ps1 и tests/ присутствуют; git status --short не показывает неожиданных изменений.
 
 ## 2. Проверить синтаксис и автотесты
 
@@ -74,6 +74,8 @@ node --check engine.js
 node --check music.js
 node --check i18n.js
 node --check platform.js
+node --check chibi.js
+node --check chibi.js
 node --check app.js
 node --test tests/*.test.js
 ~~~
@@ -87,7 +89,7 @@ Get-ChildItem tests -Filter *.test.js | ForEach-Object { node --test $_.FullName
 В macOS/Linux используйте:
 
 ~~~bash
-node --check engine.js && node --check music.js && node --check i18n.js && node --check platform.js && node --check app.js
+node --check engine.js && node --check music.js && node --check i18n.js && node --check platform.js && node --check chibi.js && node --check app.js
 node --test tests/*.test.js
 ~~~
 
@@ -136,7 +138,7 @@ python3 - <<'PY'
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 root = Path.cwd()
-required = ['index.html','style.css','engine.js','music.js','i18n.js','platform.js','app.js']
+required = ['index.html','style.css','engine.js','music.js','i18n.js','platform.js','chibi.js','app.js']
 for name in required:
     if not (root/name).is_file():
         raise SystemExit(f'Missing required file: {name}')
