@@ -53,10 +53,10 @@ dialog{background:#0b1833;border-color:#4cbde6}
  align-items:center;
  justify-content:center;
  gap:4px;
- border:1px solid #64eaff88;
+ border:1px solid #64eaff40;
  border-radius:14px;
- background:linear-gradient(90deg,#07132be8,#14244bf0,#07132be8);
- box-shadow:0 0 24px #37dfff55,inset 0 0 18px #2eafff22;
+ background:linear-gradient(90deg,#07132b24,#14244b42,#07132b24);
+ box-shadow:0 0 14px #37dfff24,inset 0 0 12px #2eafff10;
  line-height:1.05;
  white-space:normal;
  overflow-wrap:normal;
