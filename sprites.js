@@ -13,9 +13,13 @@ const SpaceSprites=(()=>{
  realistic.onload=()=>{realisticReady=true;};
  realistic.onerror=()=>{realisticReady=false;};
  realistic.src='assets/sprites/spacejumper-realistic-assets.webp';
- function drawReal(ctx,index,x,y,w,h){
+ function drawReal(ctx,index,x,y,w,h,trim=0){
   if(!realisticReady)return false;
-  ctx.drawImage(realistic,(index%8)*256,Math.floor(index/8)*128,256,128,x,y,w,h);
+  // Each atlas cell is 256×128. Trim horizontal edges for platform cells:
+  // the generated sheet has fragments of neighbouring sprites at the edges.
+  const sx=(index%8)*256+trim;
+  const sw=256-2*trim;
+  ctx.drawImage(realistic,sx,Math.floor(index/8)*128,sw,128,x,y,w,h);
   return true;
  }
  const raster=new Image();
@@ -48,8 +52,13 @@ const SpaceSprites=(()=>{
   const index={standard:4,narrow:7,crumble:5,drift:6,spikes:4}[q.type]??4;
   ctx.save();
   if(!reduced){ctx.shadowColor=q.type==='crumble'?'#ff9b43':'#4ddfff';ctx.shadowBlur=8+Math.sin(time*2+q.x)*2;}
-  const realIndex=q.type==='crumble'?12+(q.crumble===null?0:Math.min(1,Math.floor((.7-q.crumble)*2))):q.type==='drift'?8+(reduced?0:Math.floor(time*5)%4):q.type==='narrow'?2:q.type==='spikes'?0:q.type==='standard'?(reduced?0:Math.floor(time*3)%4):0;
-  const ok=drawReal(ctx,realIndex,q.x,q.y-23,q.w,62)||draw(ctx,index,q.x,q.y-20,q.w,63);
+  // Keep the platform body on one stable frame. Different generated
+  // frames have different centring and visible neighbouring fragments.
+  // Animate only the glow; this prevents jumping/sliding sprite geometry.
+  const realIndex=q.type==='crumble'?12:q.type==='drift'?8:
+   q.type==='narrow'?2:q.type==='spikes'?0:0;
+  const ok=drawReal(ctx,realIndex,q.x,q.y-23,q.w,62,18)||
+   draw(ctx,index,q.x,q.y-20,q.w,63);
   ctx.restore();
   if(!ok)return false;
   if(q.type==='spikes'){
