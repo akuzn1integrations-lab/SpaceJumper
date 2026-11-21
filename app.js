@@ -438,7 +438,7 @@ function frame(now){
    for(const e of game.events){
     if(['jump','land','pickup'].includes(e.type))sound(e.type);
     if(e.type==='notice'){
-     $('notice').textContent=e.key?I18n.notice(lang,e):e.text;
+     $('notice').textContent=I18n.notice(lang,e.text);
      noticeUntil=game.time+2;
     }
    }
