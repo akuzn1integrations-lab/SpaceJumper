@@ -8,6 +8,16 @@ const SpaceSprites=(()=>{
  image.onerror=()=>{ready=false;};
  image.src='assets/sprites/neon-atlas.svg';
  const W=128;
+ const astronautAtlas=new Image();
+ let astronautReady=false,lastFacing=1;
+ astronautAtlas.onload=()=>{astronautReady=true;};
+ astronautAtlas.onerror=()=>{astronautReady=false;};
+ astronautAtlas.src='assets/sprites/astronaut-animated.svg';
+ function drawAstronautFrame(ctx,index,x,y,w,h){
+  if(!astronautReady)return false;
+  ctx.drawImage(astronautAtlas,(index%8)*W,Math.floor(index/8)*W,W,W,x,y,w,h);
+  return true;
+ }
  function draw(ctx,index,x,y,w,h,alpha=1){
   if(!ready)return false;
   ctx.save();ctx.globalAlpha*=alpha;
@@ -38,16 +48,28 @@ const SpaceSprites=(()=>{
   return true;
  }
  function astronaut(ctx,p,held,time,reduced){
+  if(held.left&&!held.right)lastFacing=-1;
+  else if(held.right&&!held.left)lastFacing=1;
+  if(!astronautReady)return false;
   const hurt=p.inv>0;
   if(hurt&&Math.floor(time*12)%2===0)return true;
-  const idx=hurt?3:(p.vy<0||p.flight>0)?2:(held.left||held.right)?1:0;
+  const airborne=p.vy<0||p.flight>0;
+  const running=!!(held.left||held.right);
+  const falling=p.vy>140;
+  let index;
+  if(hurt)index=20+(reduced?0:Math.floor(time*7)%4);
+  else if(airborne||falling)index=10+(reduced?0:Math.floor(time*9)%6);
+  else if(running)index=4+(reduced?0:Math.floor(time*12)%6);
+  else index=lastFacing===1?28+(reduced?0:Math.floor(time*3)%4):0+(reduced?0:Math.floor(time*3)%4);
+  const side=index>=4&&index<16||index>=28;
   const cx=p.x+13,cy=p.y+19;
   ctx.save();ctx.translate(cx,cy);
-  if(held.left&&!held.right)ctx.scale(-1,1);
-  const bounce=reduced?0:idx===0?Math.sin(time*4)*1.3:idx===1?Math.sin(time*16)*2:0;
-  if(idx===2&&!reduced)draw(ctx,30,-17,14,33,47,.8);
+  // Source side-profile sprites face right. Mirror on left input.
+  // The last direction persists after the key is released.
+  if(side&&lastFacing<0)ctx.scale(-1,1);
+  if((airborne||p.flight>0)&&!reduced)draw(ctx,30,-17,15,33,47,.75);
   if(p.shield)draw(ctx,24,-38,-44,76,82,.85);
-  const ok=draw(ctx,idx,-33,-36+bounce,66,70);
+  const ok=drawAstronautFrame(ctx,index,-34,-36,68,72);
   ctx.restore();
   return ok;
  }
