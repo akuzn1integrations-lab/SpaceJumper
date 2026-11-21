@@ -66,50 +66,64 @@ const SpaceSprites=(()=>{
   ctx.restore();
   if(!ok)return false;
   if(isCrumble){
-   // Explicit cracks and a shrinking countdown make breakable platforms
-   // unmistakable, without ever using the spike-platform artwork.
+   // A visibly aged, worn deck: rust-brown metal, faded edge lighting,
+   // chipped plating and dark structural fractures. Fixed geometry/no flicker.
    ctx.save();
-   ctx.strokeStyle='#ed9aff';ctx.lineWidth=2;
-   ctx.shadowColor='#c05aff';ctx.shadowBlur=5;
-   const crack=q.crumble===null?.35:Math.min(1,1-q.crumble/.7);
-   const x=q.x+q.w*.35,y=q.y-7;
-   ctx.beginPath();ctx.moveTo(x,y);
-   ctx.lineTo(x+q.w*.09,y+7+crack*3);
-   ctx.lineTo(x+q.w*.04,y+14);
-   ctx.moveTo(x+q.w*.09,y+7+crack*3);
-   ctx.lineTo(x+q.w*.22,y+4);
-   if(q.crumble!==null){
-    ctx.moveTo(x+q.w*.22,y+4);
-    ctx.lineTo(x+q.w*.3,y+15);
+   const x=q.x,y=q.y-13,w=q.w;
+   ctx.beginPath();ctx.roundRect(x+5,y,w-10,23,5);ctx.clip();
+   ctx.fillStyle='rgba(48,27,32,.79)';ctx.fillRect(x+5,y,w-10,23);
+   const rust=ctx.createLinearGradient(0,y,0,y+23);
+   rust.addColorStop(0,'rgba(154,111,77,.85)');
+   rust.addColorStop(.38,'rgba(93,65,62,.65)');
+   rust.addColorStop(1,'rgba(34,28,39,.9)');
+   ctx.fillStyle=rust;ctx.fillRect(x+5,y,w-10,23);
+   // Deterministic chipped patches keep the old-metal appearance stable.
+   for(let i=0;i<9;i++){
+    const px=x+10+(i+.4)*(w-20)/10;
+    ctx.fillStyle=i%3===0?'#b18a69':i%3===1?'#48333b':'#6d5550';
+    ctx.fillRect(px,y+2+(i*7)%13,Math.max(3,w/35),2+(i%3));
    }
-   ctx.stroke();
+   ctx.strokeStyle='#29202b';ctx.lineWidth=2.5;
+   const crack=q.crumble===null?.25:Math.min(1,1-q.crumble/.7);
+   for(const k of [.28,.64]){
+    const px=x+w*k;
+    ctx.beginPath();ctx.moveTo(px,y);
+    ctx.lineTo(px+w*.035,y+8);
+    ctx.lineTo(px-w*.025,y+14+crack*4);
+    ctx.lineTo(px+w*.015,y+23);ctx.stroke();
+   }
+   ctx.restore();
+   // Amber, worn edge makes crumble platforms distinct from cyan standards.
+   ctx.save();ctx.strokeStyle='#ba7754';ctx.lineWidth=2.5;
+   ctx.beginPath();ctx.moveTo(x+9,y+20);ctx.lineTo(x+w-9,y+20);ctx.stroke();
    if(q.crumble!==null){
     ctx.fillStyle='#ffb36b';
-    ctx.fillRect(q.x+5,q.y-7,Math.max(0,(q.w-10)*q.crumble/.7),3);
+    ctx.fillRect(x+7,y-3,Math.max(0,(w-14)*q.crumble/.7),3);
    }
    ctx.restore();
   }
   if(isSpikes){
    ctx.save();
-   ctx.shadowColor='#ff506f';ctx.shadowBlur=5;
-   // Keep spikes fully inside the visible platform silhouette, including
-   // the rounded ends. Hazard lengths in the engine remain unchanged.
+   // Spikes are mounted ON the deck, within its visible upper surface.
+   // Their tips cannot extend above the platform sprite silhouette.
+   ctx.shadowBlur=0;
    const left=Math.max(0,q.spikeLeft||0),right=Math.max(0,q.spikeRight||0);
-   const inset=Math.min(9,q.w*.07);
+   const inset=Math.min(12,q.w*.11);
    const spans=[[q.x+inset,Math.min(q.x+left,q.x+q.w-inset)],
     [Math.max(q.x+q.w-right,q.x+inset),q.x+q.w-inset]];
    for(const [a,b] of spans){
     const width=b-a;
-    if(width<5)continue;
-    const count=Math.max(1,Math.floor(width/12));
+    if(width<6)continue;
+    const count=Math.max(1,Math.floor(width/11));
     const step=width/count;
     for(let i=0;i<count;i++){
      const x=a+i*step;
-     ctx.beginPath();ctx.moveTo(x,q.y-5);
-     ctx.lineTo(x+step/2,q.y-19);
-     ctx.lineTo(x+step,q.y-5);ctx.closePath();
-     ctx.fillStyle='#ff577a';ctx.fill();
-     ctx.strokeStyle='#ffd0d8';ctx.lineWidth=1;ctx.stroke();
+     // Raster body occupies roughly q.y-13..q.y+10.
+     ctx.beginPath();ctx.moveTo(x,q.y+2);
+     ctx.lineTo(x+step/2,q.y-11);
+     ctx.lineTo(x+step,q.y+2);ctx.closePath();
+     ctx.fillStyle='#df526c';ctx.fill();
+     ctx.strokeStyle='#ffbec5';ctx.lineWidth=1;ctx.stroke();
     }
    }
    ctx.restore();
