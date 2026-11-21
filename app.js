@@ -55,12 +55,13 @@ function menu(){
  Platform.gameplayStop();
  sound();
  overlay(t('menuTitle'),t('menuText'),[
-  [t('startRun'),()=>start()],
+  [t('startRun'),()=>beginRun()],
   [t('tutorial'),()=>start(true),true],
   [t('settingsButton'),openSettings,true]
  ]);
 }
 function start(tutorial=false){
+ if(Platform.pausedByPlatform||document.hidden)return;
  game=new SpaceJumper.Game(Date.now(),tutorial);
  state='playing';
  held={};
@@ -83,7 +84,7 @@ function pause(){
  sound();
  overlay(t('pauseTitle'),t('pauseText'),[
   [t('continueLabel'),resume],
-  [t('restartLabel'),()=>start(),true],
+  [t('restartLabel'),()=>beginRun(),true],
   [t('settingsButton'),openSettings,true],
   [t('menuLabel'),menu,true]
  ]);
@@ -121,7 +122,7 @@ function renderResult(){
   '<span>'+t('resultLevel')+'<strong>'+game.level+'</strong></span>'+
   '</div>';
  const buttons=[
-  [t('againLabel'),again],
+  [t('againLabel'),beginRun],
   [t('menuLabel'),menu,true]
  ];
  if(Platform.available&&!Platform.isAuthorized())buttons.push([t('loginForLeaderboard'),loginForLeaderboard,true]);
@@ -133,6 +134,7 @@ function finish(){
  const isRecord=!game.tutorial&&game.score>best;
  if(!game.tutorial)best=Math.max(best,game.score);
  if(!game.tutorial){
+  runsSinceAd+=1;
   save('sj-best',best);
   save('sj-last-run',{seed:game.seed,version:SpaceJumper.C.version,inputs:game.inputs,score:game.score});
  }
@@ -156,16 +158,23 @@ function finish(){
   if(isRecord)Platform.submitScore('spacejumper_best',best);
  }
 }
-async function again(){
+async function beginRun(){
  if(adTransition)return;
  adTransition=true;
- runsSinceAd+=1;
- if(runsSinceAd>=2){
-  runsSinceAd=0;
-  await Platform.showFullscreenAd();
+ try{
+  // Ads are only requested between completed runs, never during gameplay.
+  if(runsSinceAd>=2){
+   runsSinceAd=0;
+   Platform.gameplayStop();
+   sound();
+   await Platform.showFullscreenAd();
+  }
+  // An ad may have moved the page into the background.
+  if(document.hidden)return;
+  start();
+ }finally{
+  adTransition=false;
  }
- adTransition=false;
- start();
 }
 async function loginForLeaderboard(){
  const ok=await Platform.auth();
@@ -442,7 +451,7 @@ Platform.onPause(()=>{
 Platform.onResume(()=>{
  if(platformPausedRun&&state==='paused'){
   platformPausedRun=false;
-  resume();
+  if(!document.hidden)resume();
  }
 });
 applyLang(Platform.lang());
