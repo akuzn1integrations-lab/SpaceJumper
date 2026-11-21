@@ -61,7 +61,7 @@ const SpaceSprites=(()=>{
   // Use the clean dedicated SVG frame for narrow platforms.
   // The crumbling platform has its own purple material and cracks.
   let ok=false;
-  if(isNarrow)ok=draw(ctx,7,q.x,q.y-20,q.w,63);
+  if(isNarrow)ok=draw(ctx,4,q.x,q.y-20,q.w,63);
   else if(isCrumble)ok=draw(ctx,7,q.x,q.y-20,q.w,63);
   else {
    const realIndex=isDrift?8:0;
